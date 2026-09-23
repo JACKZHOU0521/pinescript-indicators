@@ -55,4 +55,4 @@ strategy description; no profitability claim.
 Educational and research tool only. **Not investment advice.** Backtest any
 rule with costs (commission + slippage) before risking capital.
 
-Compilation: not yet verified in TradingView Pine Editor.
+Compilation: verified in TradingView Pine Editor (Pine v6) on 2026-09-23 — compiles with zero errors.

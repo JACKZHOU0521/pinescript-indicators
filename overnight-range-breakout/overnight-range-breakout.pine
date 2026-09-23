@@ -18,7 +18,7 @@
 // Usage: copy all code, paste into TradingView Pine Editor,
 // click "Add to chart".
 // ============================================================
-indicator("Overnight Range Breakout", shorttitle="ON Range BO", overlay=true)
+indicator("Overnight Range Breakout", shorttitle="ON Range", overlay=true)
 
 // ---------- Inputs ----------
 grpSess = "Overnight session (exchange time)"
@@ -32,7 +32,9 @@ grpSig  = "Signals (bar-close confirmed)"
 showBO  = input.bool(true, "Breakout signals", group=grpSig)
 
 // ---------- Overnight session window (wraps across midnight) ----------
-sess   = str.format("{0:02d}{1:02d}-{2:02d}{3:02d}", sH, sM, eH, eM)
+// Pine's str.format() does not support Python-style :02d padding — pad manually
+pad2(x) => str.length(str.tostring(x)) < 2 ? "0" + str.tostring(x) : str.tostring(x)
+sess   = pad2(sH) + pad2(sM) + "-" + pad2(eH) + pad2(eM)
 inSess = not na(time(timeframe.period, sess))
 
 var float onH = na
