@@ -1,0 +1,83 @@
+//@version=6
+// ============================================================
+// VWAP Signal Suite — Session VWAP + Deviation Bands + Signals
+// ------------------------------------------------------------
+// 策略映射(来自作者 154 个日内价格行为策略研究库):
+//   PA-030 VWAP Cross Momentum      — 价格穿越 VWAP 的动量信号
+//   PA-031 VWAP Pullback Continuation — 回踩偏离带后收回 VWAP
+//   PA-032 VWAP Deviation Mean Reversion — 极端偏离标记(均值回归观察位)
+// 证据说明:映射策略为 B 级证据(有公开可复现实验),但证据等级
+// 不等于可盈利。本脚本是教育/研究工具,不构成投资建议。
+// 所有信号仅在 K 线收盘确认后出现,不重绘。
+// 使用方法:复制全部代码,粘贴到 TradingView Pine Editor,点击
+// "添加到图表"即可。
+// ============================================================
+indicator("VWAP Signal Suite", shorttitle="VWAP Suite", overlay=true)
+
+// ---------- 输入 ----------
+grpBands    = "偏离带"
+showBands   = input.bool(true, "显示偏离带", group=grpBands)
+bandLen     = input.int(30, "标准差窗口", minval=5, group=grpBands)
+mult1       = input.float(1.0, "内带 σ 倍数", minval=0.1, step=0.1, group=grpBands)
+mult2       = input.float(2.0, "外带 σ 倍数", minval=0.5, step=0.1, group=grpBands)
+
+grpSig      = "信号(仅收盘确认)"
+showCross   = input.bool(true, "VWAP 穿越信号", group=grpSig)
+showReclaim = input.bool(true, "回踩 VWAP 信号", group=grpSig)
+showExtreme = input.bool(true, "极端偏离标记", group=grpSig)
+
+// ---------- 日内 VWAP(每个交易日重置,典型价格加权) ----------
+newDay = ta.change(time("D")) != 0
+var float cumPV = na
+var float cumV  = na
+cumPV := newDay ? hl2 * volume : nz(cumV) == 0 and na(cumPV) ? hl2 * volume : nz(cumPV) + hl2 * volume
+cumV  := newDay ? volume : nz(cumV) + volume
+vwap  = cumV == 0 or na(cumV) ? na : cumPV / cumV
+
+// ---------- 偏离带(收盘价相对 VWAP 的滚动标准差) ----------
+dev = close - vwap
+sd  = ta.stdev(dev, bandLen)
+up1 = vwap + mult1 * sd
+dn1 = vwap - mult1 * sd
+up2 = vwap + mult2 * sd
+dn2 = vwap - mult2 * sd
+
+pVwap = plot(vwap, "VWAP", color.orange, 2)
+pUp1  = plot(showBands ? up1 : na, "上内带", color.new(color.teal, 70))
+pDn1  = plot(showBands ? dn1 : na, "下内带", color.new(color.teal, 70))
+pUp2  = plot(showBands ? up2 : na, "上外带", color.new(color.red, 70))
+pDn2  = plot(showBands ? dn2 : na, "下外带", color.new(color.red, 70))
+fill(pUp1, pDn1, color.new(color.teal, 92), "内带填充")
+fill(pUp2, pDn2, color.new(color.red, 94), "外带填充")
+
+// ---------- 信号(仅收盘确认,不重绘) ----------
+confirmed = barstate.isconfirmed
+
+// 1) 穿越:收盘价上穿/下穿 VWAP
+crossUp = confirmed and ta.crossover(close, vwap)
+crossDn = confirmed and ta.crossunder(close, vwap)
+
+// 2) 回踩:10 根内碰过内带,随后收回内带、但仍在 VWAP 同一侧
+touchedDn = ta.lowest(low, 10) <= dn1
+touchedUp = ta.highest(high, 10) >= up1
+reclaimUp = confirmed and touchedDn[1] and close > dn1 and close[1] <= dn1[1] and close < vwap
+reclaimDn = confirmed and touchedUp[1] and close < up1 and close[1] >= up1[1] and close > vwap
+
+// 3) 极端偏离:收盘价超出外带(观察位,非交易指令)
+extremeHi = confirmed and close > up2
+extremeLo = confirmed and close < dn2
+
+plotshape(showCross and crossUp, "穿越向上", shape.triangleup, location.belowbar, color.teal, size=size.small)
+plotshape(showCross and crossDn, "穿越向下", shape.triangledown, location.abovebar, color.red, size=size.small)
+plotshape(showReclaim and reclaimUp, "回踩回升", shape.circle, location.belowbar, color.teal, size=size.tiny)
+plotshape(showReclaim and reclaimDn, "回踩回落", shape.circle, location.abovebar, color.red, size=size.tiny)
+plotshape(showExtreme and extremeHi, "极端偏离(上)", shape.xcross, location.abovebar, color.orange, size=size.tiny)
+plotshape(showExtreme and extremeLo, "极端偏离(下)", shape.xcross, location.belowbar, color.orange, size=size.tiny)
+
+// ---------- 报警 ----------
+alertcondition(showCross and crossUp, "VWAP 上穿", "价格上穿 VWAP ({{ticker}}, {{interval}})")
+alertcondition(showCross and crossDn, "VWAP 下穿", "价格下穿 VWAP ({{ticker}}, {{interval}})")
+alertcondition(showReclaim and reclaimUp, "回踩回升", "回踩下内带后收回 ({{ticker}}, {{interval}})")
+alertcondition(showReclaim and reclaimDn, "回踩回落", "回踩上内带后收回 ({{ticker}}, {{interval}})")
+alertcondition(showExtreme and extremeHi, "极端偏离(上)", "收盘价超出 +2σ 外带 ({{ticker}}, {{interval}})")
+alertcondition(showExtreme and extremeLo, "极端偏离(下)", "收盘价跌破 -2σ 外带 ({{ticker}}, {{interval}})")
