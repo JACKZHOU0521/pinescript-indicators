@@ -47,9 +47,9 @@ else
 pdm   = (pdh + pdl) / 2
 hasLv = not na(pdh) and not na(pdl)
 
-plot(showLn ? pdh : na, "PDH", color.orange, 2, plot.style_linebr)
-plot(showLn ? pdl : na, "PDL", color.orange, 2, plot.style_linebr)
-plot(showMid ? pdm : na, "PD Mid", color.new(color.gray, 30), 1, plot.style_linebr)
+plot(showLn ? pdh : na, "PDH", color.orange, 2, style=plot.style_linebr)
+plot(showLn ? pdl : na, "PDL", color.orange, 2, style=plot.style_linebr)
+plot(showMid ? pdm : na, "PD Mid", color.new(color.gray, 30), 1, style=plot.style_linebr)
 
 // ---------- Signals (confirmed on bar close only) ----------
 confirmed = barstate.isconfirmed

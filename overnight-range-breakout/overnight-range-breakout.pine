@@ -54,8 +54,8 @@ else if not inSess and inSess[1]
     fixH := onH
     fixL := onL
 
-plot(showLn ? fixH : na, "ON High", color.purple, 2, plot.style_linebr)
-plot(showLn ? fixL : na, "ON Low", color.purple, 2, plot.style_linebr)
+plot(showLn ? fixH : na, "ON High", color.purple, 2, style=plot.style_linebr)
+plot(showLn ? fixL : na, "ON Low", color.purple, 2, style=plot.style_linebr)
 
 // ---------- Signals (confirmed on bar close only) ----------
 confirmed = barstate.isconfirmed

@@ -58,9 +58,9 @@ else if not inOR and inOR[1]
 
 afterOR = not inOR and not na(fixH)
 
-plot(showLn ? fixH : na, "OR High", color.teal, 2, plot.style_linebr)
-plot(showLn ? fixL : na, "OR Low", color.teal, 2, plot.style_linebr)
-plot(showMid ? fixM : na, "OR Mid", color.new(color.gray, 30), 1, plot.style_linebr)
+plot(showLn ? fixH : na, "OR High", color.teal, 2, style=plot.style_linebr)
+plot(showLn ? fixL : na, "OR Low", color.teal, 2, style=plot.style_linebr)
+plot(showMid ? fixM : na, "OR Mid", color.new(color.gray, 30), 1, style=plot.style_linebr)
 
 // ---------- Signals (confirmed on bar close only) ----------
 confirmed = barstate.isconfirmed
