@@ -56,4 +56,4 @@ description; no profitability claim.
 Educational and research tool only. **Not investment advice.** Backtest any
 rule with costs (commission + slippage) before risking capital.
 
-Compilation: not yet verified in TradingView Pine Editor.
+Compilation: verified in the TradingView Pine Editor (Pine Script v6) on 2026-09-23 — compiled with 0 errors, added to chart, no runtime errors observed.

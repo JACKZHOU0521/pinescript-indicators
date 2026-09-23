@@ -12,6 +12,9 @@ with honest evidence grading.
 | [Opening Range Breakout](opening-range-breakout/) | First-N-minute range high/low, close-confirmed breakout & retest-failure signals, 4 alerts |
 | [Previous-Day Levels](previous-day-levels/) | Prior-day high/low/mid lines, breakout-close & wick-rejection signals, 6 alerts |
 | [Overnight Range Breakout](overnight-range-breakout/) | Configurable overnight session range, day-session breakout signals, 2 alerts |
+| [Gap and Go](gap-and-go/) | Opening gap vs prior close with gap-hold filter + opening-swing breakout, 2 alerts |
+| [Lunch Range Breakout](lunch-range-breakout/) | Midday consolidation box (exchange time), close-confirmed breakout signals, 2 alerts |
+| [Inside Bar Breakout](inside-bar-breakout/) | Inside-bar detection with mother-bar boundary break, setup expiry, 2 alerts |
 
 ## Standards
 
