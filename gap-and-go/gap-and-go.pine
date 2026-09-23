@@ -1,0 +1,84 @@
+//@version=6
+// ============================================================
+// Gap and Go — gap holds, then opening-swing breakout
+// ------------------------------------------------------------
+// Strategy mapping (from author's 154 intraday price-action
+// strategy research library):
+//   PA-008 Gap-and-Go — opening gap holds; break opening swing
+//   in gap direction.
+// Evidence: C — rules coded from the published strategy
+// description; no reproducible public experiment cited and no
+// profitability claim. This script is an education/research
+// tool, not investment advice.
+// All signals appear only after bar-close confirmation —
+// no repainting.
+// Gap and the opening swing are measured from the first bar
+// of the exchange day. Use on intraday timeframes.
+// Usage: copy all code, paste into TradingView Pine Editor,
+// click "Add to chart".
+// ============================================================
+indicator("Gap and Go", shorttitle="Gap&Go", overlay=true)
+
+// ---------- Inputs ----------
+grpGap = "Gap definition"
+gapMin = input.float(0.5, "Min gap %", minval=0.1, maxval=10, step=0.1, group=grpGap)
+winMin = input.int(15, "Opening swing (minutes)", minval=1, maxval=120, group=grpGap)
+showLn = input.bool(true, "Show prior close / swing lines", group=grpGap)
+
+grpSig = "Signals (bar-close confirmed)"
+showGo = input.bool(true, "Gap-and-go signals", group=grpSig)
+
+// ---------- Day state ----------
+newDay    = ta.change(time("D")) != 0
+prevClose = request.security(syminfo.tickerid, "D", close[1], lookahead=barmerge.lookahead_on)
+
+var float dayO  = na
+var int   dayT  = na
+var float winH  = na
+var float winL  = na
+var float sessH = na
+var float sessL = na
+
+if newDay
+    dayO  := open
+    dayT  := time
+    winH  := high
+    winL  := low
+    sessH := high
+    sessL := low
+
+elapsedMin = na(dayT) ? 0 : (time - dayT) / 60000
+inWin      = elapsedMin < winMin
+afterWin   = elapsedMin >= winMin
+
+if not newDay and inWin
+    winH := math.max(winH, high)
+    winL := math.min(winL, low)
+if not newDay
+    sessH := math.max(sessH, high)
+    sessL := math.min(sessL, low)
+
+// ---------- Gap: size and "holds" ----------
+gapPct = na(prevClose) or prevClose == 0 ? na : (dayO - prevClose) / prevClose * 100
+gapUp  = not na(gapPct) and gapPct >= gapMin
+gapDn  = not na(gapPct) and gapPct <= -gapMin
+
+holdsUp = gapUp and sessL > prevClose
+holdsDn = gapDn and sessH < prevClose
+
+// ---------- Signals (confirmed on bar close only) ----------
+confirmed = barstate.isconfirmed
+goUp = confirmed and afterWin and holdsUp and ta.crossover(close, winH)
+goDn = confirmed and afterWin and holdsDn and ta.crossunder(close, winL)
+
+// ---------- Plots ----------
+plot(showLn ? prevClose : na, "Prior close", color.gray, 1, style=plot.style_linebr)
+plot(showLn and afterWin ? winH : na, "Swing high", color.teal, 2, style=plot.style_linebr)
+plot(showLn and afterWin ? winL : na, "Swing low", color.red, 2, style=plot.style_linebr)
+
+plotshape(showGo and goUp, "Gap-and-go up", shape.triangleup, location.belowbar, color.teal, size=size.small)
+plotshape(showGo and goDn, "Gap-and-go down", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// ---------- Alerts ----------
+alertcondition(showGo and goUp, "Gap-and-go up", "Gap up held, close above opening swing high ({{ticker}}, {{interval}})")
+alertcondition(showGo and goDn, "Gap-and-go down", "Gap down held, close below opening swing low ({{ticker}}, {{interval}})")

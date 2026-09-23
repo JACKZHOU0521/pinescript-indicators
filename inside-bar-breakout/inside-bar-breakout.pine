@@ -1,0 +1,64 @@
+//@version=6
+// ============================================================
+// Inside Bar Breakout — mother-bar boundary break
+// ------------------------------------------------------------
+// Strategy mapping (from author's 154 intraday price-action
+// strategy research library):
+//   PA-045 Inside Bar Breakout — child range inside mother bar;
+//   trade confirmed boundary break.
+// Evidence: C — rules coded from the published strategy
+// description; no reproducible public experiment cited and no
+// profitability claim. This script is an education/research
+// tool, not investment advice.
+// All signals appear only after bar-close confirmation —
+// no repainting. Consecutive inside bars keep the original
+// mother bar as the reference.
+// Usage: copy all code, paste into TradingView Pine Editor,
+// click "Add to chart".
+// ============================================================
+indicator("Inside Bar Breakout", shorttitle="InsideBO", overlay=true)
+
+// ---------- Inputs ----------
+grpPat = "Pattern"
+lookBk = input.int(3, "Max bars since inside bar", minval=1, maxval=20, group=grpPat)
+showLn = input.bool(true, "Show mother high/low lines", group=grpPat)
+showIB = input.bool(true, "Mark inside bars", group=grpPat)
+
+grpSig = "Signals (bar-close confirmed)"
+showBO = input.bool(true, "Breakout signals", group=grpSig)
+
+// ---------- Inside bar + mother bar ----------
+isInside = high < high[1] and low > low[1]
+
+var float momH = na
+var float momL = na
+var int barsSince = na
+
+// First inside bar of a sequence freezes the mother bar
+if isInside and not isInside[1]
+    momH := high[1]
+    momL := low[1]
+
+if isInside
+    barsSince := 0
+else if not na(barsSince)
+    barsSince := barsSince + 1
+
+active = not na(barsSince) and barsSince <= lookBk
+
+// ---------- Signals (confirmed on bar close only) ----------
+confirmed = barstate.isconfirmed
+boUp = confirmed and active and not isInside and close > momH and close[1] <= momH[1]
+boDn = confirmed and active and not isInside and close < momL and close[1] >= momL[1]
+
+// ---------- Plots ----------
+plot(showLn and active ? momH : na, "Mother high", color.blue, 2, style=plot.style_linebr)
+plot(showLn and active ? momL : na, "Mother low", color.blue, 2, style=plot.style_linebr)
+plotshape(showIB and isInside, "Inside bar", shape.diamond, location.top, color.gray, size=size.tiny)
+
+plotshape(showBO and boUp, "Inside breakout up", shape.triangleup, location.belowbar, color.teal, size=size.small)
+plotshape(showBO and boDn, "Inside breakout down", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// ---------- Alerts ----------
+alertcondition(showBO and boUp, "Inside bar breakout up", "Close above mother-bar high after inside bar ({{ticker}}, {{interval}})")
+alertcondition(showBO and boDn, "Inside bar breakout down", "Close below mother-bar low after inside bar ({{ticker}}, {{interval}})")

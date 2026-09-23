@@ -1,0 +1,74 @@
+//@version=6
+// ============================================================
+// Lunch Range Breakout — midday box + first breakout
+// ------------------------------------------------------------
+// Strategy mapping (from author's 154 intraday price-action
+// strategy research library):
+//   PA-013 Lunch Range Breakout — build midday box; trade first
+//   confirmed boundary break.
+// Evidence: C — rules coded from the published strategy
+// description; no reproducible public experiment cited and no
+// profitability claim. This script is an education/research
+// tool, not investment advice.
+// All signals appear only after bar-close confirmation —
+// no repainting.
+// The midday window is evaluated in EXCHANGE time (the symbol's
+// own timezone), default 11:30–13:30.
+// Usage: copy all code, paste into TradingView Pine Editor,
+// click "Add to chart".
+// ============================================================
+indicator("Lunch Range Breakout", shorttitle="LunchBO", overlay=true)
+
+// ---------- Inputs ----------
+grpSess = "Midday window (exchange time)"
+sH      = input.int(11, "Window start hour", minval=0, maxval=23, group=grpSess)
+sM      = input.int(30, "Window start minute", minval=0, maxval=59, group=grpSess)
+eH      = input.int(13, "Window end hour", minval=0, maxval=23, group=grpSess)
+eM      = input.int(30, "Window end minute", minval=0, maxval=59, group=grpSess)
+showLn  = input.bool(true, "Show lunch high/low lines", group=grpSess)
+
+grpSig = "Signals (bar-close confirmed)"
+showBO = input.bool(true, "Breakout signals", group=grpSig)
+
+// ---------- Midday window (exchange time) ----------
+// Pine's str.format() does not support Python-style :02d padding — pad manually
+pad2(x) => str.length(str.tostring(x)) < 2 ? "0" + str.tostring(x) : str.tostring(x)
+sess   = pad2(sH) + pad2(sM) + "-" + pad2(eH) + pad2(eM)
+inWin  = not na(time(timeframe.period, sess))
+newDay = ta.change(time("D")) != 0
+
+var float boxH = na
+var float boxL = na
+var float fixH = na
+var float fixL = na
+
+if newDay
+    fixH := na
+    fixL := na
+if inWin and not inWin[1]
+    boxH := high
+    boxL := low
+else if inWin
+    boxH := math.max(boxH, high)
+    boxL := math.min(boxL, low)
+else if not inWin and inWin[1]
+    fixH := boxH
+    fixL := boxL
+
+afterWin = not inWin and not na(fixH)
+
+// ---------- Signals (confirmed on bar close only) ----------
+confirmed = barstate.isconfirmed
+boUp = confirmed and afterWin and close > fixH and close[1] <= fixH[1]
+boDn = confirmed and afterWin and close < fixL and close[1] >= fixL[1]
+
+// ---------- Plots ----------
+plot(showLn ? fixH : na, "Lunch high", color.orange, 2, style=plot.style_linebr)
+plot(showLn ? fixL : na, "Lunch low", color.orange, 2, style=plot.style_linebr)
+
+plotshape(showBO and boUp, "Lunch breakout up", shape.triangleup, location.belowbar, color.teal, size=size.small)
+plotshape(showBO and boDn, "Lunch breakout down", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// ---------- Alerts ----------
+alertcondition(showBO and boUp, "Lunch range breakout up", "Close above lunch range high ({{ticker}}, {{interval}})")
+alertcondition(showBO and boDn, "Lunch range breakout down", "Close below lunch range low ({{ticker}}, {{interval}})")
