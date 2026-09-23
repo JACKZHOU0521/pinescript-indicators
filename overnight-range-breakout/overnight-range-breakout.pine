@@ -1,0 +1,73 @@
+//@version=6
+// ============================================================
+// Overnight Range Breakout — overnight high/low + day-session
+// breakout signals
+// ------------------------------------------------------------
+// Strategy mapping (from author's 154 intraday price-action
+// strategy research library):
+//   PA-006 Overnight Range Breakout — RTH/session close breaks
+//   the overnight high or low.
+// Evidence: C — rules coded from the published strategy
+// description; no reproducible public experiment cited and no
+// profitability claim. This script is an education/research
+// tool, not investment advice.
+// All signals appear only after bar-close confirmation —
+// no repainting.
+// The overnight window is evaluated in EXCHANGE time (the
+// symbol's own timezone), default 20:00–08:00.
+// Usage: copy all code, paste into TradingView Pine Editor,
+// click "Add to chart".
+// ============================================================
+indicator("Overnight Range Breakout", shorttitle="ON Range BO", overlay=true)
+
+// ---------- Inputs ----------
+grpSess = "Overnight session (exchange time)"
+sH      = input.int(20, "Session start hour", minval=0, maxval=23, group=grpSess)
+sM      = input.int(0, "Session start minute", minval=0, maxval=59, group=grpSess)
+eH      = input.int(8, "Session end hour", minval=0, maxval=23, group=grpSess)
+eM      = input.int(0, "Session end minute", minval=0, maxval=59, group=grpSess)
+showLn  = input.bool(true, "Show overnight high/low lines", group=grpSess)
+
+grpSig  = "Signals (bar-close confirmed)"
+showBO  = input.bool(true, "Breakout signals", group=grpSig)
+
+// ---------- Overnight session window (wraps across midnight) ----------
+sess   = str.format("{0:02d}{1:02d}-{2:02d}{3:02d}", sH, sM, eH, eM)
+inSess = not na(time(timeframe.period, sess))
+
+var float onH = na
+var float onL = na
+if inSess and not inSess[1]
+    onH := high
+    onL := low
+else if inSess
+    onH := math.max(onH, high)
+    onL := math.min(onL, low)
+
+// Freeze the range when the session ends; blank during the session
+var float fixH = na
+var float fixL = na
+if inSess and not inSess[1]
+    fixH := na
+    fixL := na
+else if not inSess and inSess[1]
+    fixH := onH
+    fixL := onL
+
+plot(showLn ? fixH : na, "ON High", color.purple, 2, plot.style_linebr)
+plot(showLn ? fixL : na, "ON Low", color.purple, 2, plot.style_linebr)
+
+// ---------- Signals (confirmed on bar close only) ----------
+confirmed = barstate.isconfirmed
+afterSess = not inSess and not na(fixH)
+
+// Breakout: first close beyond the frozen overnight range
+boUp = confirmed and afterSess and close > fixH and close[1] <= fixH[1]
+boDn = confirmed and afterSess and close < fixL and close[1] >= fixL[1]
+
+plotshape(showBO and boUp, "ON breakout up", shape.triangleup, location.belowbar, color.teal, size=size.small)
+plotshape(showBO and boDn, "ON breakout down", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+// ---------- Alerts ----------
+alertcondition(showBO and boUp, "ON range breakout up", "Close above overnight high ({{ticker}}, {{interval}})")
+alertcondition(showBO and boDn, "ON range breakout down", "Close below overnight low ({{ticker}}, {{interval}})")

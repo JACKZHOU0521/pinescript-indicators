@@ -1,0 +1,82 @@
+//@version=6
+// ============================================================
+// Previous-Day Levels — PDH/PDL + Breakout/Rejection Signals
+// ------------------------------------------------------------
+// Strategy mapping (from author's 154 intraday price-action
+// strategy research library):
+//   PA-004 Previous-day High/Low Breakout — close through the
+//   prior-day extreme and hold/retest.
+//   PA-005 Previous-day High/Low Rejection — sweep the prior-day
+//   extreme, then close back inside the prior range.
+// Evidence: C — rules coded from the published strategy
+// description; no reproducible public experiment cited and no
+// profitability claim. This script is an education/research
+// tool, not investment advice.
+// All signals appear only after bar-close confirmation —
+// no repainting.
+// Usage: copy all code, paste into TradingView Pine Editor,
+// click "Add to chart". Best on intraday timeframes.
+// ============================================================
+indicator("Previous-Day Levels", shorttitle="PD Levels", overlay=true)
+
+// ---------- Inputs ----------
+grpLv   = "Levels"
+showLn  = input.bool(true, "Show PDH/PDL lines", group=grpLv)
+showMid = input.bool(false, "Show previous-day mid line", group=grpLv)
+
+grpSig  = "Signals (bar-close confirmed)"
+showBO  = input.bool(true, "Breakout signals", group=grpSig)
+showRej = input.bool(true, "Rejection signals", group=grpSig)
+
+// ---------- Previous-day high/low (tracked on intraday bars) ----------
+newDay = ta.change(time("D")) != 0
+
+var float curH = na
+var float curL = na
+var float pdh  = na
+var float pdl  = na
+if newDay
+    pdh  := curH
+    pdl  := curL
+    curH := high
+    curL := low
+else
+    curH := math.max(nz(curH, high), high)
+    curL := math.min(nz(curL, low), low)
+
+pdm   = (pdh + pdl) / 2
+hasLv = not na(pdh) and not na(pdl)
+
+plot(showLn ? pdh : na, "PDH", color.orange, 2, plot.style_linebr)
+plot(showLn ? pdl : na, "PDL", color.orange, 2, plot.style_linebr)
+plot(showMid ? pdm : na, "PD Mid", color.new(color.gray, 30), 1, plot.style_linebr)
+
+// ---------- Signals (confirmed on bar close only) ----------
+confirmed = barstate.isconfirmed
+
+// Breakout: fresh close through the level (PA-004)
+boUp = confirmed and hasLv and close > pdh and close[1] <= pdh[1]
+boDn = confirmed and hasLv and close < pdl and close[1] >= pdl[1]
+
+// Rejection: wick sweeps the level, closes back inside (PA-005)
+rejUp = confirmed and hasLv and high > pdh and high[1] <= pdh[1] and close < pdh
+rejDn = confirmed and hasLv and low < pdl and low[1] >= pdl[1] and close > pdl
+
+// Mid-line rejection (optional, gated on the mid line input)
+rejMidUp = confirmed and showMid and hasLv and high > pdm and high[1] <= pdm[1] and close < pdm
+rejMidDn = confirmed and showMid and hasLv and low < pdm and low[1] >= pdm[1] and close > pdm
+
+plotshape(showBO and boUp, "PDH breakout", shape.triangleup, location.belowbar, color.teal, size=size.small)
+plotshape(showBO and boDn, "PDL breakout", shape.triangledown, location.abovebar, color.red, size=size.small)
+plotshape(showRej and rejUp, "PDH rejection", shape.xcross, location.abovebar, color.orange, size=size.small)
+plotshape(showRej and rejDn, "PDL rejection", shape.xcross, location.belowbar, color.orange, size=size.small)
+plotshape(showRej and rejMidUp, "Mid rejection up", shape.circle, location.abovebar, color.gray, size=size.tiny)
+plotshape(showRej and rejMidDn, "Mid rejection dn", shape.circle, location.belowbar, color.gray, size=size.tiny)
+
+// ---------- Alerts ----------
+alertcondition(showBO and boUp, "PDH breakout", "Close above previous-day high ({{ticker}}, {{interval}})")
+alertcondition(showBO and boDn, "PDL breakout", "Close below previous-day low ({{ticker}}, {{interval}})")
+alertcondition(showRej and rejUp, "PDH rejection", "Wick swept PDH, closed back below ({{ticker}}, {{interval}})")
+alertcondition(showRej and rejDn, "PDL rejection", "Wick swept PDL, closed back above ({{ticker}}, {{interval}})")
+alertcondition(showRej and rejMidUp, "Mid rejection up", "Wick swept PD mid, closed back below ({{ticker}}, {{interval}})")
+alertcondition(showRej and rejMidDn, "Mid rejection dn", "Wick swept PD mid, closed back above ({{ticker}}, {{interval}})")

@@ -1,0 +1,95 @@
+//@version=6
+// ============================================================
+// Opening Range Breakout — OR High/Low + Breakout Signals
+// ------------------------------------------------------------
+// Strategy mapping (from author's 154 intraday price-action
+// strategy research library):
+//   PA-001 Opening Range Breakout — after the opening window,
+//   close outside its high/low; trade breakout direction.
+// Evidence: B — multiple public ORB samples are reproducible,
+// but evidence grade is NOT a profitability claim. Rules coded
+// from the published strategy description; no profitability
+// claim. This script is an education/research tool, not
+// investment advice.
+// All signals appear only after bar-close confirmation —
+// no repainting.
+// Usage: copy all code, paste into TradingView Pine Editor,
+// click "Add to chart".
+// ============================================================
+indicator("Opening Range Breakout", shorttitle="ORB", overlay=true)
+
+// ---------- Inputs ----------
+grpOR    = "Opening range"
+orMin    = input.int(30, "Opening window (minutes)", minval=5, maxval=240, group=grpOR)
+showLn   = input.bool(true, "Show OR high/low lines", group=grpOR)
+showMid  = input.bool(false, "Show OR mid line", group=grpOR)
+
+grpSig   = "Signals (bar-close confirmed)"
+showBO   = input.bool(true, "Breakout signals", group=grpSig)
+showFail = input.bool(true, "Retest-failure signals", group=grpSig)
+
+// ---------- Opening window (exchange day open + N minutes) ----------
+newDay   = ta.change(time("D")) != 0
+dayStart = ta.valuewhen(newDay, time, 0)
+minsOpen = (time - dayStart) / 60000
+inOR     = minsOpen < orMin
+
+var float orH = na
+var float orL = na
+if newDay
+    orH := high
+    orL := low
+else if inOR
+    orH := math.max(orH, high)
+    orL := math.min(orL, low)
+
+// Freeze the range once the window closes; blank before that
+var float fixH = na
+var float fixL = na
+var float fixM = na
+if newDay
+    fixH := na
+    fixL := na
+    fixM := na
+else if not inOR and inOR[1]
+    fixH := orH
+    fixL := orL
+    fixM := (orH + orL) / 2
+
+afterOR = not inOR and not na(fixH)
+
+plot(showLn ? fixH : na, "OR High", color.teal, 2, plot.style_linebr)
+plot(showLn ? fixL : na, "OR Low", color.teal, 2, plot.style_linebr)
+plot(showMid ? fixM : na, "OR Mid", color.new(color.gray, 30), 1, plot.style_linebr)
+
+// ---------- Signals (confirmed on bar close only) ----------
+confirmed = barstate.isconfirmed
+
+// Breakout: first close beyond the frozen range after the window
+boUp = confirmed and afterOR and close > fixH and close[1] <= fixH[1]
+boDn = confirmed and afterOR and close < fixL and close[1] >= fixL[1]
+
+// Retest failure: broke out earlier today, then closed back inside
+var bool brokeUp = false
+var bool brokeDn = false
+if newDay
+    brokeUp := false
+    brokeDn := false
+if boUp
+    brokeUp := true
+if boDn
+    brokeDn := true
+
+failUp = confirmed and afterOR and brokeUp and ta.crossunder(close, fixH)
+failDn = confirmed and afterOR and brokeDn and ta.crossover(close, fixL)
+
+plotshape(showBO and boUp, "Breakout up", shape.triangleup, location.belowbar, color.teal, size=size.small)
+plotshape(showBO and boDn, "Breakout down", shape.triangledown, location.abovebar, color.red, size=size.small)
+plotshape(showFail and failUp, "Failure (long)", shape.xcross, location.abovebar, color.orange, size=size.small)
+plotshape(showFail and failDn, "Failure (short)", shape.xcross, location.belowbar, color.orange, size=size.small)
+
+// ---------- Alerts ----------
+alertcondition(showBO and boUp, "ORB breakout up", "Close above opening range high ({{ticker}}, {{interval}})")
+alertcondition(showBO and boDn, "ORB breakout down", "Close below opening range low ({{ticker}}, {{interval}})")
+alertcondition(showFail and failUp, "ORB failure (long)", "Broke OR high, then closed back inside ({{ticker}}, {{interval}})")
+alertcondition(showFail and failDn, "ORB failure (short)", "Broke OR low, then closed back inside ({{ticker}}, {{interval}})")
